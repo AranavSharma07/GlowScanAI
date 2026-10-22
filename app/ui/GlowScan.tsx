@@ -229,6 +229,10 @@ export default function GlowScan() {
   }
 
   async function submitLeaderboardEntry() {
+    if (!publicLeaderboardConsent) {
+      setError(lang === "hi" ? "Leaderboard par naam aur score public dikhane ke liye consent dein." : "Please consent to displaying your name and score publicly before joining the leaderboard.");
+      return;
+    }
     if (!analysis || analysis.mode !== "real_ai" || typeof analysis.score !== "number" || !analysis.leaderboardToken) {
       setError(lang === "hi" ? "Public leaderboard ke liye valid AI scan token zaroori hai. Server setup check karein aur naya scan karein." : "A verified AI scan token is required. Check server setup and run a new scan.");
       return;
@@ -472,7 +476,7 @@ export default function GlowScan() {
         {analysis?.mode === "real_ai" && typeof analysis.score === "number" && (
           <div className="leaderboard-submit">
             <label>{lang === "hi" ? "Aapka display name" : "Your display name"}
-              <input value={leaderboardName} onChange={e => { setLeaderboardName(e.target.value); setLeaderboardSaved(false); }} maxLength={40} placeholder={lang === "hi" ? "Jaise: GlowStar" : "e.g. GlowStar"} />
+              <input value={leaderboardName} onChange={e => { setLeaderboardName(e.target.value); setLeaderboardSaved(false); }} maxLength={32} placeholder={lang === "hi" ? "Jaise: GlowStar" : "e.g. GlowStar"} />
             </label>
             <label className="leaderboard-consent"><input type="checkbox" checked={publicLeaderboardConsent} onChange={e => setPublicLeaderboardConsent(e.target.checked)} /><span>{lang === "hi" ? "Main samajhta/samajhti hoon ki mera display name aur score sab visitors ko public dikhai dega. Main apna legal name use karne ke liye majboor nahi hoon." : "I understand my display name and score will be public to all visitors. I do not need to use my legal name."}</span></label>
             <button className="certificate-btn" onClick={submitLeaderboardEntry}><Award size={17}/>{leaderboardSaved ? (lang === "hi" ? "Ranking update karein" : "Update leaderboard entry") : (lang === "hi" ? "Leaderboard mein shamil hon" : "Join leaderboard")}</button>

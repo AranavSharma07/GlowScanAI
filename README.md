@@ -69,11 +69,12 @@ Without the key, the page still runs but clearly tells users that real analysis 
 Local history is not cloud sync and may be lost when browser storage is cleared or when using another device. A score trend is not medical evidence of improvement.
 
 
-## Glow leaderboard
-- Users can add a display name and a score from a successful real-AI analysis.
-- Entries are ranked by score descending; certificate eligibility (score 80+ and certificate form details) breaks ties.
-- The leaderboard is stored in browser localStorage on the current device only. It is **not global, public, account-backed, or identity-verified**.
-- A true cross-user public leaderboard requires a database, authentication, server-side score validation, abuse prevention/rate limiting, moderation, and a privacy notice. Do not present local rankings as a public competition.
+## Public Glow leaderboard
+- The public leaderboard uses Supabase, not browser localStorage, and displays user-chosen display names and scores to all visitors.
+- Only scores returned by a successful real-AI analysis with a valid, short-lived server-signed token can be submitted.
+- Entries are ranked by score descending; scores of 80+ are marked certificate-eligible and used as a tie-breaker. Identity is not verified.
+- Users must explicitly consent before submitting a public display name and score. Do not use a legal name or sensitive personal information.
+- Configure the Supabase database and server environment variables below before expecting public entries to work.
 
 
 ## Public leaderboard setup (Supabase)
