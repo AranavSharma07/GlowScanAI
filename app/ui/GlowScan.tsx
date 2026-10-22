@@ -141,8 +141,8 @@ export default function GlowScan() {
       setError(lang === "hi" ? "JPG, PNG ya WebP image choose karein." : "Please choose a JPG, PNG, or WebP image.");
       return;
     }
-    if (f.size > 5 * 1024 * 1024) {
-      setError(lang === "hi" ? "Image 5 MB se chhoti honi chahiye." : "Please choose an image under 5 MB.");
+    if (f.size > 50 * 1024 * 1024) {
+      setError(lang === "hi" ? "Image 50 MB se chhoti honi chahiye." : "Please choose an image under 50 MB.");
       return;
     }
     setError("");
@@ -150,6 +150,45 @@ export default function GlowScan() {
     setFile(f);
     setPreview(URL.createObjectURL(f));
     setPhotoQuality(null);
+  }
+
+  async function prepareImageForAnalysis(source: File): Promise<string> {
+    // Accept source photos up to 50 MB, but resize/compress before sending through
+    // a serverless function so the JSON request stays comfortably below its body limit.
+    const bitmap = await createImageBitmap(source);
+    const maxDimension = 2048;
+    const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    const ctx = canvas.getContext("2d");
+    if (!ctx) { bitmap.close(); throw new Error("Your browser could not prepare this image. Please try another photo."); }
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close();
+
+    const toBlob = (quality: number) => new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error("Could not compress the image. Please try another photo.")), "image/jpeg", quality);
+    });
+    let blob = await toBlob(0.84);
+    if (blob.size > 2_700_000) blob = await toBlob(0.72);
+    if (blob.size > 2_700_000) {
+      const smaller = document.createElement("canvas");
+      const factor = Math.sqrt(2_400_000 / blob.size);
+      smaller.width = Math.max(600, Math.round(canvas.width * factor));
+      smaller.height = Math.max(600, Math.round(canvas.height * factor));
+      const smallerCtx = smaller.getContext("2d");
+      if (!smallerCtx) throw new Error("Could not optimize the image. Please try another photo.");
+      smallerCtx.drawImage(canvas, 0, 0, smaller.width, smaller.height);
+      blob = await new Promise<Blob>((resolve, reject) => smaller.toBlob(result => result ? resolve(result) : reject(new Error("Could not compress the image.")), "image/jpeg", 0.68));
+    }
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(new Error("Could not read the prepared image."));
+      reader.readAsDataURL(blob);
+    });
   }
 
   async function checkPhotoQuality(fileToCheck: File): Promise<{ ok: boolean; issues: string[] }> {
@@ -201,17 +240,9 @@ export default function GlowScan() {
     try {
       const quality = await checkPhotoQuality(file);
       setPhotoQuality(quality);
-      if (!quality.ok) {
-        setLoading(false);
-        setError(lang === "hi" ? "Photo quality recommendations follow karein aur phir analysis dobara start karein. Agar aap phir bhi continue karna chahte hain, pehle photo retake karein." : "Please follow the photo quality tips and retake your selfie before analysis for more reliable observations.");
-        return;
-      }
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result));
-        reader.onerror = () => reject(new Error("Could not read image"));
-        reader.readAsDataURL(file);
-      });
+      // Quality checks are advisory: don't block users because a heuristic may
+      // misjudge lighting or skin tone. The AI response will still include caveats.
+      const dataUrl = await prepareImageForAnalysis(file);
       const response = await fetch("/api/analyze", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ image: dataUrl, answers: { skinFeel, goals, language: lang, userMessage: userMessage.trim() } })
@@ -383,7 +414,7 @@ export default function GlowScan() {
             <div className="upload-card">
               <div className="card-topline"><span>01 / PHOTO</span><span className="soft-pill"><LockKeyhole size={12}/> PRIVATE SESSION</span></div>
               {!preview ? <button className="upload-zone" onClick={() => inputRef.current?.click()}>
-                <span className="upload-icon"><Upload/></span><strong>{t.choose}</strong><span>JPG, PNG or WebP · Max 5 MB</span><span className="browse-btn">{lang === "hi" ? "Photo browse karein" : "Browse photo"}</span>
+                <span className="upload-icon"><Upload/></span><strong>{t.choose}</strong><span>JPG, PNG or WebP · Max 50 MB</span><span className="browse-btn">{lang === "hi" ? "Photo browse karein" : "Browse photo"}</span>
               </button> : <div className="preview-zone"><img src={preview} alt="Your uploaded selfie preview"/><div className="preview-shade"/><span className="photo-ready"><Check size={14}/> Photo ready</span><button className="remove-photo" onClick={removePhoto}><Trash2 size={15}/>{t.remove}</button></div>}
               <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={e => chooseFile(e.target.files?.[0])}/>
               <p className="upload-hint"><CircleHelp size={14}/> {lang === "hi" ? "Natural light, face seedha, filters ke bina." : "Natural light, face forward, no beauty filters."}</p>

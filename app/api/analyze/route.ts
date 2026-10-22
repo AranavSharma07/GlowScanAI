@@ -32,8 +32,10 @@ export async function POST(req: NextRequest) {
     if (typeof image !== "string" || !/^data:image\/(jpeg|jpg|png|webp);base64,/.test(image)) {
       return NextResponse.json({ error: "Please upload a JPG, PNG, or WebP selfie." }, { status: 400 });
     }
-    if (image.length > 7_000_000) {
-      return NextResponse.json({ error: "Image is too large. Please use an image under about 5 MB." }, { status: 413 });
+    // The browser compresses uploads before posting. Keep this request guard
+    // conservative for Vercel serverless request-body limits.
+    if (image.length > 4_000_000) {
+      return NextResponse.json({ error: "The optimized image is still too large. Please choose a smaller photo or crop it and try again." }, { status: 413 });
     }
 
     const model = process.env.OPENAI_VISION_MODEL || "gpt-4o-mini";
