@@ -1,0 +1,13 @@
+import type { Metadata } from "next";
+import "./globals.css";
+
+export const metadata: Metadata = {
+  title: "GlowScan AI — Your Personal Skin Companion",
+  description: "Understand visible skin concerns and build a gentle, personalized skincare routine with GlowScan AI.",
+  applicationName: "GlowScan AI",
+  themeColor: "#fbf8f5"
+};
+
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  return <html lang="en"><body>{children}</body></html>;
+}
